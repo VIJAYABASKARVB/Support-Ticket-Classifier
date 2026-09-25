@@ -38,3 +38,16 @@ class TicketClassification(BaseModel):
     confidence_score: float = Field(ge=0.0, le=1.0)
     reasoning: str = Field(description="One line explanation of classification")
     requires_human_review: bool
+
+class TicketState(BaseModel):
+    """LangGraph state passed between nodes."""
+    raw_ticket: str
+    channel: str = "web_form"
+    redacted_ticket: Optional[str] = None
+    classification: Optional[TicketClassification] = None
+    validation_status: Optional[str] = None  # "pass" | "fail"
+    cost_info: Optional[dict] = None
+    error: Optional[str] = None
+    pii_detected: bool = False
+    prompt_version: Optional[str] = None
+    injection_blocked: bool = False
