@@ -82,4 +82,124 @@ def classify_node(state: dict) -> dict:
       "prompt_version" : version
     }
 
+# NODE-4 -> VALIDATION NODE
 
+def validate_node(state:dict) ->dict:
+  if state.get("injection_blocked"):
+    return state
+
+  raw = state.get("classification")
+  if raw is None:
+    return {
+      **state,
+      "validation_status" : "fail",
+    }
+
+  result = validate_classification(raw)
+  return{
+    **state,
+    "validation_status": "pass" if result.is_valid else "fail",
+    "error": None if result.is_valid else "; ".join(result.error_details),
+    "classification": result.validated_classification if result.is_valid else raw,
+  }
+
+
+#NODE-5 -> RETRYING USING FALLBACK
+def fallback_node(state:dict) -> dict:
+  logger.warning("Entering fallback node - delegating to classify_with_fallback")
+  ticket_text = state.get("redacted_ticket") or state["raw_ticket"]
+
+  classification = classify_with_fallback(ticket_text=ticket_text,model=DEFAULT_MODEL)
+  validation_status = "pass" if classification.confidence_score > 0.0 else "fallback_safe"
+
+  return{
+    **state,
+    "classification":classification,
+    "validation_status":validation_status,
+  }
+
+
+# NODE-6 -> COST LOG CALCULATION
+def cost_log_node(state:dict) -> dict:
+  ticket_text = state.get("redacted_ticket") or state["raw_ticket"]
+  classification = state.get("classification")
+
+  input_tokens = count_tokens(ticket_text,DEFAULT_MODEL)
+  output_tokens = count_tokens(
+    classification.model_dump_json() if classification else "",DEFAULT_MODEL
+  )
+  cost_info = calculate_cost(
+    DEFAULT_MODEL,
+    input_tokens,
+    output_tokens
+  )
+
+  if os.getenv("LOG_COSTS", "true").lower() == "true":
+    logger.info(
+        "Cost — model: %s | in: %d | out: %d | total: $%.6f",
+        cost_info.model,
+        cost_info.input_tokens,
+        cost_info.output_tokens,
+        cost_info.total_cost_usd,
+  )
+
+  return {
+    **state,
+    "cost_info": {
+        "model": cost_info.model,
+        "input_tokens": cost_info.input_tokens,
+        "output_tokens": cost_info.output_tokens,
+        "total_cost_usd": cost_info.total_cost_usd,
+    },
+  }
+
+# Routing logic
+def route_after_validate(state: dict) -> str:
+    if state.get("injection_blocked"):
+        return "cost_log"
+    if state.get("validation_status") == "pass":
+        return "cost_log"
+    return "fallback"
+
+# BUILD THE GRAPH
+def build_graph():
+  builder = StateGraph(dict)
+
+  builder.add_node("pii_redact", pii_redact_node)
+  builder.add_node("injection_check", injection_check_node)
+  builder.add_node("classify", classify_node)
+  builder.add_node("validate", validate_node)
+  builder.add_node("fallback", fallback_node)
+  builder.add_node("cost_log", cost_log_node)
+
+
+  builder.add_edge(START, "pii_redact")
+  builder.add_edge("pii_redact", "injection_check")
+  builder.add_edge("injection_check", "classify")
+  builder.add_edge("classify", "validate")
+  builder.add_conditional_edges("validate", route_after_validate, {
+      "cost_log": "cost_log",
+      "fallback": "fallback",
+  })
+  builder.add_edge("fallback", "cost_log")
+  builder.add_edge("cost_log", END)
+
+  return builder.compile()
+
+
+graph = build_graph()
+
+def run_pipeline(ticket_text: str, channel: str = "web_form") -> dict:
+  initial_state = {
+      "raw_ticket": ticket_text,
+      "channel": channel,
+      "redacted_ticket": None,
+      "classification": None,
+      "validation_status": None,
+      "cost_info": None,
+      "error": None,
+      "pii_detected": False,
+      "prompt_version": None,
+      "injection_blocked": False,
+  }
+  return graph.invoke(initial_state)
