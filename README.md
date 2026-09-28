@@ -6,9 +6,9 @@ AI-powered customer support ticket classifier with production-grade reliability:
 
 ## Demo Screenshot
 
-![Demo](demo_ui/screenshot.png)
+![Demo](demo-ui/screenshot.png)
 
-> Note: Run the app and take a screenshot, save as `demo_ui/screenshot.png` (actual UI file lives at `demo-ui/index.html`, screenshot at `demo-ui/screenshot.png`).
+> Note: Run the app and take a screenshot, save as `demo-ui/screenshot.png`.
 
 ## Project Overview
 
