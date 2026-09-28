@@ -530,7 +530,7 @@
       <h1>Support ticket <em>classifier</em></h1>
       <div class="sub" id="apiSub"><span class="live-dot" id="liveDot" aria-hidden="true"></span><span id="apiSubText">LangGraph pipeline, prompt v2, gpt-oss-120b</span></div>
     </div>
-    <div class="meta" id="headerMeta">POST /classify :8000</div>
+    <div class="meta" id="headerMeta">POST /classify :443</div>
   </div>
 </header>
 
@@ -636,6 +636,7 @@
 </footer>
 
 <script>
+const API_BASE = "https://support-ticket-classifier-zrj0.onrender.com";
 const SAMPLES = [
   {
     channel: "web_form",
@@ -687,7 +688,7 @@ async function checkApiHealth() {
   const dot = document.getElementById("liveDot");
   const sub = document.getElementById("apiSubText");
   try {
-    const resp = await fetch("http://localhost:8000/health");
+    const resp = await fetch("https://support-ticket-classifier-zrj0.onrender.com/health");
     const ok = resp.ok && (await resp.json()).status === "ok";
     dot.classList.toggle("on", ok);
     if (!ok) sub.textContent = "API offline - start server on :8000";
@@ -752,7 +753,7 @@ async function classify() {
 
   setLoading(true);
   try {
-    const resp = await fetch("http://localhost:8000/classify", {
+    const resp = await fetch("https://support-ticket-classifier-zrj0.onrender.com/classify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ticket_text: text, channel: document.getElementById("channel").value }),
