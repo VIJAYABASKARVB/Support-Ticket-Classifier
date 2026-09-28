@@ -120,10 +120,10 @@ async def classify(request: ClassifyRequest):
       request.channel
     )
   except Exception as exc:
-     logger.exception("Pipeline error: %s",exc)
+     logger.exception("Pipeline error: %s", exc)
      raise HTTPException(
         status_code=500,
-        detail = str(exc)
+        detail=str(exc)
      )
 
   classification = state.get("classification")
@@ -132,6 +132,20 @@ async def classify(request: ClassifyRequest):
       status_code=422, 
       detail=state.get("error", "Classification failed")
     )
+
+  return ClassifyResponse(
+    issue_category=classification.issue_category,
+    assigned_team=classification.assigned_team,
+    priority=classification.priority,
+    user_sentiment=classification.user_sentiment,
+    confidence_score=classification.confidence_score,
+    reasoning=classification.reasoning,
+    requires_human_review=classification.requires_human_review,
+    pii_detected=state.get("pii_detected", False),
+    injection_blocked=state.get("injection_blocked", False),
+    prompt_version=state.get("prompt_version"),
+    cost_info=state.get("cost_info"),
+  )
    
 if __name__ == "__main__":
     import uvicorn
