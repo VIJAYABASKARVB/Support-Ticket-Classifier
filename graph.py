@@ -21,7 +21,7 @@ DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "openai/gpt-oss-120b")
 
 
 # NODE-1 -> PII-REDACT
-def pii_reddact_node(state:dict) -> dict:
+def pii_redact_node(state:dict) -> dict:
   result = redact_pii(state["raw_ticket"])
   print(result)
   return{
